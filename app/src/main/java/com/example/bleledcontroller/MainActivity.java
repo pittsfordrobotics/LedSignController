@@ -93,9 +93,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateLedStatus(View v) {
-        int value = chkLed.isChecked() ? 1 : 0;
+        int value = chkLed.isChecked() ? 100 : 20;
         showStatus("Setting characteristic to " + value);
-        connector.sendByte((byte)value);
+        connector.setBrightness((byte)value);
     }
 
     private NanoConnector createConnector() {

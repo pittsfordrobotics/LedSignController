@@ -28,7 +28,7 @@ public class NanoConnector {
     private static final UUID LedServiceUuid = UUID.fromString("99be4fac-c708-41e5-a149-74047f554cc1");
     private static final ParcelUuid LedServiceParcelUuid = new ParcelUuid(LedServiceUuid);
     private static final UUID BrightnessCharacteristicId = UUID.fromString("5eccb54e-465f-47f4-ac50-6735bfc0e730");
-    private static final UUID BrightnessCharacteristicId = UUID.fromString("5eccb54e-465f-47f4-ac50-6735bfc0e730");
+    private static final UUID StyleCharacteristicId = UUID.fromString("c99db9f7-1719-43db-ad86-d02d36b191b3");
 
     private Context context;
     private NanoConnectorCallback callback;
@@ -36,7 +36,8 @@ public class NanoConnector {
     private BluetoothDevice bluetoothDevice;
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothGatt bluetoothGatt;
-    private BluetoothGattCharacteristic ledCharacteristic;
+    private BluetoothGattCharacteristic brightnessCharacteristic;
+    private BluetoothGattCharacteristic styleCharacteristic;
 
     public NanoConnector(Context context, NanoConnectorCallback callback) {
         this.context = context;
@@ -70,9 +71,13 @@ public class NanoConnector {
         bluetoothLeScanner.startScan(filters, scanSettings, leScanCallback);
     }
 
-    public void sendByte(byte value) {
-        ledCharacteristic.setValue(value, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-        bluetoothGatt.writeCharacteristic(ledCharacteristic);
+    public void setBrightness(byte brightness) {
+        brightnessCharacteristic.setValue(brightness, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        bluetoothGatt.writeCharacteristic(brightnessCharacteristic);
+    }
+
+    public byte getBrightness() {
+        return brightnessCharacteristic.getValue()[0];
     }
 
     private void connectToDevice(BluetoothDevice device) {
@@ -130,14 +135,23 @@ public class NanoConnector {
                 return;
             }
             callback.acceptStatus("Found LED service.");
-            ledCharacteristic = ledService.getCharacteristic(LedCharacteristicId);
+            brightnessCharacteristic = ledService.getCharacteristic(BrightnessCharacteristicId);
 
-            if (ledCharacteristic == null) {
-                callback.acceptStatus("LED Characteristic not found!");
+            if (brightnessCharacteristic == null) {
+                callback.acceptStatus("LED Brightness Characteristic not found!");
+                return;
+            }
+            callback.acceptStatus("Found LED Brightness Characteristic.");
+            styleCharacteristic = ledService.getCharacteristic(StyleCharacteristicId);
+
+            if (styleCharacteristic == null) {
+                callback.acceptStatus("LED Style Characteristic not found!");
                 return;
             }
 
-            callback.acceptStatus("Connected.");
+            callback.acceptStatus("Found LED Style Characteristic.");
+
+            callback.acceptStatus("Connected and ready.");
             callback.connected();
         }
     };
