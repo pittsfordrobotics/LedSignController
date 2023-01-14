@@ -9,11 +9,14 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
     //
     // Much help from
     // https://punchthrough.com/android-ble-guide/
@@ -24,6 +27,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView txtStatus = null;
     private CheckBox chkLed = null;
     private NanoConnector connector = null;
+    private Spinner stylePicker = null;
 
     private boolean hasPermission(String permission) {
         return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
@@ -78,6 +82,10 @@ public class MainActivity extends AppCompatActivity {
             showStatus("Initializing");
 
             chkLed = findViewById(R.id.chkLed);
+            stylePicker = findViewById(R.id.spStyle);
+            String[] items = { "Red", "Blue", "Green" };
+            ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, items);
+            stylePicker.setAdapter(adapter);
 
             if (!hasRequiredRuntimePermissions()) {
                 requestRelevantRuntimePermissions();
@@ -92,8 +100,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void updateLedStatus(View v) {
-        int value = chkLed.isChecked() ? 100 : 20;
+    private void updateLedBrightness(View v) {
+        int value = chkLed.isChecked() ? 150 : 20;
         showStatus("Setting characteristic to " + value);
         connector.setBrightness((byte)value);
     }
@@ -116,7 +124,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void enableUpdates() {
-        chkLed.setOnClickListener(this::updateLedStatus);
+        chkLed.setOnClickListener(this::updateLedBrightness);
+        stylePicker.setOnItemSelectedListener(this);
     }
 
     private void showStatus(String status) {
@@ -137,5 +146,15 @@ public class MainActivity extends AppCompatActivity {
                 showStatus("Permission denied.");
             }
         }
+    }
+
+    @Override
+    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+        showStatus("Selected item " + i);
+        connector.setStyle((byte)i);
+    }
+
+    @Override
+    public void onNothingSelected(AdapterView<?> adapterView) {
     }
 }

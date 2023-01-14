@@ -76,8 +76,9 @@ public class NanoConnector {
         bluetoothGatt.writeCharacteristic(brightnessCharacteristic);
     }
 
-    public byte getBrightness() {
-        return brightnessCharacteristic.getValue()[0];
+    public void setStyle(byte style) {
+        styleCharacteristic.setValue(style, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        bluetoothGatt.writeCharacteristic(styleCharacteristic);
     }
 
     private void connectToDevice(BluetoothDevice device) {
