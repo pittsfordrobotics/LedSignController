@@ -12,11 +12,12 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
+public class MainActivity extends AppCompatActivity {
     //
     // Much help from
     // https://punchthrough.com/android-ble-guide/
@@ -28,6 +29,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private CheckBox chkLed = null;
     private NanoConnector connector = null;
     private Spinner stylePicker = null;
+    private SeekBar brightnessBar = null;
 
     private boolean hasPermission(String permission) {
         return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
@@ -80,6 +82,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             txtStatus = findViewById(R.id.txtStatus);
             txtStatus.setText("");
             showStatus("Initializing");
+            brightnessBar = findViewById(R.id.seekBarBrightness);
 
             chkLed = findViewById(R.id.chkLed);
             stylePicker = findViewById(R.id.spStyle);
@@ -125,7 +128,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     private void enableUpdates() {
         chkLed.setOnClickListener(this::updateLedBrightness);
-        stylePicker.setOnItemSelectedListener(this);
+        brightnessBar.setOnSeekBarChangeListener(brightnessListener);
+        stylePicker.setOnItemSelectedListener(dropdownListener);
     }
 
     private void showStatus(String status) {
@@ -148,13 +152,32 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         }
     }
 
-    @Override
-    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-        showStatus("Selected item " + i);
-        connector.setStyle((byte)i);
-    }
+    private AdapterView.OnItemSelectedListener dropdownListener = new AdapterView.OnItemSelectedListener() {
+        @Override
+        public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+            showStatus("Selected item " + i);
+            connector.setStyle((byte)i);
+        }
 
-    @Override
-    public void onNothingSelected(AdapterView<?> adapterView) {
-    }
+        @Override
+        public void onNothingSelected(AdapterView<?> adapterView) {
+        }
+    };
+
+    private SeekBar.OnSeekBarChangeListener brightnessListener = new SeekBar.OnSeekBarChangeListener() {
+        @Override
+        public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+        }
+
+        @Override
+        public void onStartTrackingTouch(SeekBar seekBar) {
+        }
+
+        @Override
+        public void onStopTrackingTouch(SeekBar seekBar) {
+            int value = seekBar.getProgress();
+            showStatus("Setting brightness to " + value);
+            connector.setBrightness((byte)value);
+        }
+    };
 }
