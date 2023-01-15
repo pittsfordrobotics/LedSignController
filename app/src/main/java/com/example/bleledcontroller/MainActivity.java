@@ -11,7 +11,6 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -24,9 +23,9 @@ public class MainActivity extends AppCompatActivity {
     //
 
     private static final int RUNTIME_PERMISSION_REQUEST_CODE = 1;
+    private static final String[] StyleEntries = { "Red", "Blue", "Green" };
 
     private TextView txtStatus = null;
-    private CheckBox chkLed = null;
     private NanoConnector connector = null;
     private Spinner stylePicker = null;
     private SeekBar brightnessBar = null;
@@ -84,10 +83,8 @@ public class MainActivity extends AppCompatActivity {
             showStatus("Initializing");
             brightnessBar = findViewById(R.id.seekBarBrightness);
 
-            chkLed = findViewById(R.id.chkLed);
             stylePicker = findViewById(R.id.spStyle);
-            String[] items = { "Red", "Blue", "Green" };
-            ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, items);
+            ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, StyleEntries);
             stylePicker.setAdapter(adapter);
 
             if (!hasRequiredRuntimePermissions()) {
@@ -101,12 +98,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             txtStatus.setText(e.toString());
         }
-    }
-
-    private void updateLedBrightness(View v) {
-        int value = chkLed.isChecked() ? 150 : 20;
-        showStatus("Setting characteristic to " + value);
-        connector.setBrightness((byte)value);
     }
 
     private NanoConnector createConnector() {
@@ -127,7 +118,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void enableUpdates() {
-        chkLed.setOnClickListener(this::updateLedBrightness);
         brightnessBar.setOnSeekBarChangeListener(brightnessListener);
         stylePicker.setOnItemSelectedListener(dropdownListener);
     }
@@ -155,7 +145,8 @@ public class MainActivity extends AppCompatActivity {
     private AdapterView.OnItemSelectedListener dropdownListener = new AdapterView.OnItemSelectedListener() {
         @Override
         public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-            showStatus("Selected item " + i);
+            String style = StyleEntries[i];
+            showStatus("Selected item: " + style);
             connector.setStyle((byte)i);
         }
 
@@ -167,6 +158,8 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar.OnSeekBarChangeListener brightnessListener = new SeekBar.OnSeekBarChangeListener() {
         @Override
         public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            //showStatus("Setting brightness to " + i);
+            connector.setBrightness((byte)i);
         }
 
         @Override
@@ -175,9 +168,9 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onStopTrackingTouch(SeekBar seekBar) {
-            int value = seekBar.getProgress();
-            showStatus("Setting brightness to " + value);
-            connector.setBrightness((byte)value);
+//            int value = seekBar.getProgress();
+//            showStatus("Setting brightness to " + value);
+//            connector.setBrightness((byte)value);
         }
     };
 }
