@@ -17,13 +17,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
-    //
-    // Much help from
-    // https://punchthrough.com/android-ble-guide/
-    //
-
     private static final int RUNTIME_PERMISSION_REQUEST_CODE = 1;
-    private static final String[] StyleEntries = { "Red", "Blue", "Green" };
+    private static final String[] StyleEntries = { "Red", "Blue", "Green", "Rainbow" };
 
     private TextView txtStatus = null;
     private NanoConnector connector = null;

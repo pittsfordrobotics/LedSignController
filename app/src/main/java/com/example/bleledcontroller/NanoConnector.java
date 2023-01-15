@@ -22,9 +22,14 @@ import android.os.ParcelUuid;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public class NanoConnector {
+    //
+    // Much help from
+    // https://punchthrough.com/android-ble-guide/
+    //
     private static final UUID LedServiceUuid = UUID.fromString("99be4fac-c708-41e5-a149-74047f554cc1");
     private static final ParcelUuid LedServiceParcelUuid = new ParcelUuid(LedServiceUuid);
     private static final UUID BrightnessCharacteristicId = UUID.fromString("5eccb54e-465f-47f4-ac50-6735bfc0e730");
@@ -38,6 +43,9 @@ public class NanoConnector {
     private BluetoothGatt bluetoothGatt;
     private BluetoothGattCharacteristic brightnessCharacteristic;
     private BluetoothGattCharacteristic styleCharacteristic;
+
+    private byte initialBrightness = -1;
+    private byte initialStyle = -1;
 
     public NanoConnector(Context context, NanoConnectorCallback callback) {
         this.context = context;
@@ -71,9 +79,17 @@ public class NanoConnector {
         bluetoothLeScanner.startScan(filters, scanSettings, leScanCallback);
     }
 
+    public byte getInitialBrightness() {
+        return initialBrightness;
+    }
+
     public void setBrightness(byte brightness) {
         brightnessCharacteristic.setValue(brightness, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
         bluetoothGatt.writeCharacteristic(brightnessCharacteristic);
+    }
+
+    public byte getInitialStyle() {
+        return initialStyle;
     }
 
     public void setStyle(byte style) {
@@ -142,18 +158,39 @@ public class NanoConnector {
                 callback.acceptStatus("LED Brightness Characteristic not found!");
                 return;
             }
-            callback.acceptStatus("Found LED Brightness Characteristic.");
             styleCharacteristic = ledService.getCharacteristic(StyleCharacteristicId);
 
             if (styleCharacteristic == null) {
                 callback.acceptStatus("LED Style Characteristic not found!");
                 return;
             }
+            callback.acceptStatus("Services bound successfully.");
 
-            callback.acceptStatus("Found LED Style Characteristic.");
-
-            callback.acceptStatus("Connected and ready.");
-            callback.connected();
+            // read initial values - do this one at a time to avoid parallelism issues
+            gatt.readCharacteristic(brightnessCharacteristic);
         }
+
+       @Override
+       public void onCharacteristicRead(BluetoothGatt gatt,
+                                        BluetoothGattCharacteristic characteristic,
+                                        int status) {
+
+            if (characteristic.getUuid().equals(BrightnessCharacteristicId)) {
+                callback.acceptStatus("Initial brightness read.");
+                initialBrightness = characteristic.getValue()[0];
+                gatt.readCharacteristic(styleCharacteristic);
+                return;
+            }
+
+            if (characteristic.getUuid().equals(StyleCharacteristicId)) {
+                callback.acceptStatus("Initial style read.");
+                initialStyle = characteristic.getValue()[0];
+            }
+
+            if (initialBrightness > -1 && initialStyle > -1) {
+                callback.acceptStatus("Connected and ready.");
+                callback.connected();
+            }
+       }
     };
 }
