@@ -104,7 +104,13 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void connected() {
-                enableUpdates();
+                showStatus("Attempting to set brightness to " + connector.getInitialBrightness() + " and style to " + connector.getInitialStyle());
+                runOnUiThread(() ->
+                {
+                    brightnessBar.setProgress(connector.getInitialBrightness());
+                    stylePicker.setSelection(connector.getInitialStyle());
+                    enableUpdates();
+                });
             }
         };
 

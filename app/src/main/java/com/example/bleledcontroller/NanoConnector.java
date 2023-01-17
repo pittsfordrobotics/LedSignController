@@ -44,8 +44,8 @@ public class NanoConnector {
     private BluetoothGattCharacteristic brightnessCharacteristic;
     private BluetoothGattCharacteristic styleCharacteristic;
 
-    private byte initialBrightness = -1;
-    private byte initialStyle = -1;
+    private int initialBrightness = -1;
+    private int initialStyle = -1;
 
     public NanoConnector(Context context, NanoConnectorCallback callback) {
         this.context = context;
@@ -79,20 +79,20 @@ public class NanoConnector {
         bluetoothLeScanner.startScan(filters, scanSettings, leScanCallback);
     }
 
-    public byte getInitialBrightness() {
+    public int getInitialBrightness() {
         return initialBrightness;
     }
 
-    public void setBrightness(byte brightness) {
+    public void setBrightness(int brightness) {
         brightnessCharacteristic.setValue(brightness, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
         bluetoothGatt.writeCharacteristic(brightnessCharacteristic);
     }
 
-    public byte getInitialStyle() {
+    public int getInitialStyle() {
         return initialStyle;
     }
 
-    public void setStyle(byte style) {
+    public void setStyle(int style) {
         styleCharacteristic.setValue(style, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
         bluetoothGatt.writeCharacteristic(styleCharacteristic);
     }
@@ -176,15 +176,19 @@ public class NanoConnector {
                                         int status) {
 
             if (characteristic.getUuid().equals(BrightnessCharacteristicId)) {
-                callback.acceptStatus("Initial brightness read.");
-                initialBrightness = characteristic.getValue()[0];
+                callback.acceptStatus("Initial brightness read. Status: " + status);
+                byte b = characteristic.getValue()[0];
+                initialBrightness = Byte.toUnsignedInt(b);
+                callback.acceptStatus("Initial brightness: " + initialBrightness);
                 gatt.readCharacteristic(styleCharacteristic);
                 return;
             }
 
             if (characteristic.getUuid().equals(StyleCharacteristicId)) {
-                callback.acceptStatus("Initial style read.");
-                initialStyle = characteristic.getValue()[0];
+                callback.acceptStatus("Initial style read. Status: " + status);
+                byte b = characteristic.getValue()[0];
+                initialStyle = Byte.toUnsignedInt(b);
+                callback.acceptStatus("Initial style: " + initialStyle);
             }
 
             if (initialBrightness > -1 && initialStyle > -1) {
