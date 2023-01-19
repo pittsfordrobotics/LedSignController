@@ -34,6 +34,7 @@ public class NanoConnector {
     private static final ParcelUuid LedServiceParcelUuid = new ParcelUuid(LedServiceUuid);
     private static final UUID BrightnessCharacteristicId = UUID.fromString("5eccb54e-465f-47f4-ac50-6735bfc0e730");
     private static final UUID StyleCharacteristicId = UUID.fromString("c99db9f7-1719-43db-ad86-d02d36b191b3");
+    private static final UUID NamesCharacteristicId = UUID.fromString("9022a1e0-3a1f-428a-bad6-3181a4d010a5");
 
     private Context context;
     private NanoConnectorCallback callback;
@@ -43,6 +44,7 @@ public class NanoConnector {
     private BluetoothGatt bluetoothGatt;
     private BluetoothGattCharacteristic brightnessCharacteristic;
     private BluetoothGattCharacteristic styleCharacteristic;
+    private BluetoothGattCharacteristic namesCharacteristic;
 
     private int initialBrightness = -1;
     private int initialStyle = -1;
@@ -164,6 +166,13 @@ public class NanoConnector {
                 callback.acceptStatus("LED Style Characteristic not found!");
                 return;
             }
+
+            namesCharacteristic = ledService.getCharacteristic(NamesCharacteristicId);
+            if (namesCharacteristic == null) {
+                callback.acceptStatus("Names Characteristic not found!");
+                return;
+            }
+
             callback.acceptStatus("Services bound successfully.");
 
             // read initial values - do this one at a time to avoid parallelism issues
@@ -189,6 +198,14 @@ public class NanoConnector {
                 byte b = characteristic.getValue()[0];
                 initialStyle = Byte.toUnsignedInt(b);
                 callback.acceptStatus("Initial style: " + initialStyle);
+                gatt.readCharacteristic(namesCharacteristic);
+                return;
+            }
+
+            if (characteristic.getUuid().equals(NamesCharacteristicId)) {
+                callback.acceptStatus("Names read. Status: " + status);
+                String s = new String(characteristic.getValue());
+                callback.acceptStatus("List of names: " + s);
             }
 
             if (initialBrightness > -1 && initialStyle > -1) {
