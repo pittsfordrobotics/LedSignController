@@ -81,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
             showStatus("Initializing");
             brightnessBar = findViewById(R.id.seekBarBrightness);
             speedBar = findViewById(R.id.seekBarSpeed);
-            stepBar = findViewById(R.id.seekBarSpeed);
+            stepBar = findViewById(R.id.seekBarStep);
             stylePicker = findViewById(R.id.spStyle);
 
             if (!hasRequiredRuntimePermissions()) {
@@ -166,6 +166,7 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar.OnSeekBarChangeListener speedListener = new SeekBar.OnSeekBarChangeListener() {
         @Override
         public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            showStatus("Setting sped to " + i);
             connector.setSpeed((byte)i);
         }
 
@@ -181,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar.OnSeekBarChangeListener stepListener = new SeekBar.OnSeekBarChangeListener() {
         @Override
         public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            showStatus("Setting step to " + i);
             connector.setStep((byte)i);
         }
 
