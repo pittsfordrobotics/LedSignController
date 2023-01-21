@@ -108,10 +108,6 @@ public class MainActivity extends AppCompatActivity {
             public void connected() {
                 runOnUiThread(() ->
                 {
-                    brightnessBar.setProgress(connector.getInitialBrightness());
-                    stylePicker.setSelection(connector.getInitialStyle());
-                    speedBar.setProgress(connector.getInitialSpeed());
-                    stepBar.setProgress(connector.getInitialStep());
                     enableUpdates();
                 });
             }
@@ -122,8 +118,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void enableUpdates() {
+        // Populate with current values
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, connector.getKnownStyles());
         stylePicker.setAdapter(adapter);
+        brightnessBar.setProgress(connector.getInitialBrightness());
+        stylePicker.setSelection(connector.getInitialStyle());
+        speedBar.setProgress(connector.getInitialSpeed());
+        stepBar.setProgress(connector.getInitialStep());
+
+        // Enable updates
         brightnessBar.setOnSeekBarChangeListener(brightnessListener);
         stylePicker.setOnItemSelectedListener(stylePickListener);
         speedBar.setOnSeekBarChangeListener(speedListener);
