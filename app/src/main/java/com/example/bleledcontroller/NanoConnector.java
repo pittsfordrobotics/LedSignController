@@ -35,6 +35,8 @@ public class NanoConnector {
     private static final UUID BrightnessCharacteristicId = UUID.fromString("5eccb54e-465f-47f4-ac50-6735bfc0e730");
     private static final UUID StyleCharacteristicId = UUID.fromString("c99db9f7-1719-43db-ad86-d02d36b191b3");
     private static final UUID NamesCharacteristicId = UUID.fromString("9022a1e0-3a1f-428a-bad6-3181a4d010a5");
+    private static final UUID SpeedCharacteristicId = UUID.fromString("b975e425-62e4-4b08-a652-d64ad5097815");
+    private static final UUID StepCharacteristicId = UUID.fromString("70e51723-0771-4946-a5b3-49693e9646b5");
 
     private Context context;
     private NanoConnectorCallback callback;
@@ -45,9 +47,14 @@ public class NanoConnector {
     private BluetoothGattCharacteristic brightnessCharacteristic;
     private BluetoothGattCharacteristic styleCharacteristic;
     private BluetoothGattCharacteristic namesCharacteristic;
+    private BluetoothGattCharacteristic speedCharacteristic;
+    private BluetoothGattCharacteristic stepCharacteristic;
 
     private int initialBrightness = -1;
     private int initialStyle = -1;
+    private String[] knownStyles;
+    private int initialSpeed = -1;
+    private int initialStep = -1;
 
     public NanoConnector(Context context, NanoConnectorCallback callback) {
         this.context = context;
@@ -99,9 +106,23 @@ public class NanoConnector {
         bluetoothGatt.writeCharacteristic(styleCharacteristic);
     }
 
+    public String[] getKnownStyles() { return knownStyles; }
+
     private void connectToDevice(BluetoothDevice device) {
         callback.acceptStatus("Attempting GATT connection.");
         device.connectGatt(context, true, gattCallback);
+    }
+
+    public int getInitialSpeed() { return initialSpeed; }
+    public void setSpeed(int speed) {
+        speedCharacteristic.setValue(speed, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        bluetoothGatt.writeCharacteristic(speedCharacteristic);
+    }
+
+    public int getInitialStep() { return initialStep; }
+    public void setStep(int step) {
+        stepCharacteristic.setValue(step, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        bluetoothGatt.writeCharacteristic(stepCharacteristic);
     }
 
     private ScanCallback leScanCallback =
@@ -154,29 +175,33 @@ public class NanoConnector {
                 return;
             }
             callback.acceptStatus("Found LED service.");
-            brightnessCharacteristic = ledService.getCharacteristic(BrightnessCharacteristicId);
+            brightnessCharacteristic = findCharacteristic(ledService, BrightnessCharacteristicId, "Brightness");
+            styleCharacteristic = findCharacteristic(ledService, StyleCharacteristicId, "Style");
+            namesCharacteristic = findCharacteristic(ledService, NamesCharacteristicId, "Style Names");
+            speedCharacteristic = findCharacteristic(ledService, SpeedCharacteristicId, "Speed");
+            stepCharacteristic = findCharacteristic(ledService, StepCharacteristicId, "Step");
 
-            if (brightnessCharacteristic == null) {
-                callback.acceptStatus("LED Brightness Characteristic not found!");
-                return;
-            }
-            styleCharacteristic = ledService.getCharacteristic(StyleCharacteristicId);
-
-            if (styleCharacteristic == null) {
-                callback.acceptStatus("LED Style Characteristic not found!");
-                return;
-            }
-
-            namesCharacteristic = ledService.getCharacteristic(NamesCharacteristicId);
-            if (namesCharacteristic == null) {
-                callback.acceptStatus("Names Characteristic not found!");
+            if (brightnessCharacteristic == null
+                || styleCharacteristic == null
+                || namesCharacteristic == null
+                || speedCharacteristic == null
+                || stepCharacteristic == null) {
                 return;
             }
 
             callback.acceptStatus("Services bound successfully.");
 
-            // read initial values - do this one at a time to avoid parallelism issues
+            // Start reading initial values - do this one at a time to avoid parallelism issues.
+            // Should have some sort of queuing mechanism.
             gatt.readCharacteristic(brightnessCharacteristic);
+        }
+
+        private BluetoothGattCharacteristic findCharacteristic(BluetoothGattService service, UUID id, String name) {
+            BluetoothGattCharacteristic gattChar = service.getCharacteristic(id);
+            if (gattChar == null) {
+                callback.acceptStatus("Characteristic '" + name + "' not found!");
+            }
+            return gattChar;
         }
 
        @Override
@@ -185,7 +210,6 @@ public class NanoConnector {
                                         int status) {
 
             if (characteristic.getUuid().equals(BrightnessCharacteristicId)) {
-                callback.acceptStatus("Initial brightness read. Status: " + status);
                 byte b = characteristic.getValue()[0];
                 initialBrightness = Byte.toUnsignedInt(b);
                 callback.acceptStatus("Initial brightness: " + initialBrightness);
@@ -194,7 +218,6 @@ public class NanoConnector {
             }
 
             if (characteristic.getUuid().equals(StyleCharacteristicId)) {
-                callback.acceptStatus("Initial style read. Status: " + status);
                 byte b = characteristic.getValue()[0];
                 initialStyle = Byte.toUnsignedInt(b);
                 callback.acceptStatus("Initial style: " + initialStyle);
@@ -203,14 +226,29 @@ public class NanoConnector {
             }
 
             if (characteristic.getUuid().equals(NamesCharacteristicId)) {
-                callback.acceptStatus("Names read. Status: " + status);
                 String s = new String(characteristic.getValue());
                 callback.acceptStatus("List of names: " + s);
+                knownStyles = s.split(";");
+                gatt.readCharacteristic(speedCharacteristic);
+                return;
             }
 
-            if (initialBrightness > -1 && initialStyle > -1) {
-                callback.acceptStatus("Connected and ready.");
-                callback.connected();
+            if (characteristic.getUuid().equals(SpeedCharacteristicId)) {
+                byte b = characteristic.getValue()[0];
+                initialSpeed = Byte.toUnsignedInt(b);
+                callback.acceptStatus("Initial speed: " + b);
+                gatt.readCharacteristic(stepCharacteristic);
+                return;
+            }
+
+            if (characteristic.getUuid().equals(StepCharacteristicId)) {
+               byte b = characteristic.getValue()[0];
+               initialStep = Byte.toUnsignedInt(b);
+               callback.acceptStatus("Initial step: " + b);
+
+               // Finally done!
+               callback.acceptStatus("Connected and ready.");
+               callback.connected();
             }
        }
     };

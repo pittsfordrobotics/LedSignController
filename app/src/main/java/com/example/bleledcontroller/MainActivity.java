@@ -16,14 +16,17 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.function.Consumer;
+
 public class MainActivity extends AppCompatActivity {
     private static final int RUNTIME_PERMISSION_REQUEST_CODE = 1;
-    private static final String[] StyleEntries = { "Red", "Blue", "Green", "Rainbow" };
 
     private TextView txtStatus = null;
     private NanoConnector connector = null;
     private Spinner stylePicker = null;
     private SeekBar brightnessBar = null;
+    private SeekBar speedBar = null;
+    private SeekBar stepBar = null;
 
     private boolean hasPermission(String permission) {
         return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
@@ -77,10 +80,9 @@ public class MainActivity extends AppCompatActivity {
             txtStatus.setText("");
             showStatus("Initializing");
             brightnessBar = findViewById(R.id.seekBarBrightness);
-
+            speedBar = findViewById(R.id.seekBarSpeed);
+            stepBar = findViewById(R.id.seekBarSpeed);
             stylePicker = findViewById(R.id.spStyle);
-            ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, StyleEntries);
-            stylePicker.setAdapter(adapter);
 
             if (!hasRequiredRuntimePermissions()) {
                 requestRelevantRuntimePermissions();
@@ -104,11 +106,12 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void connected() {
-                showStatus("Attempting to set brightness to " + connector.getInitialBrightness() + " and style to " + connector.getInitialStyle());
                 runOnUiThread(() ->
                 {
                     brightnessBar.setProgress(connector.getInitialBrightness());
                     stylePicker.setSelection(connector.getInitialStyle());
+                    speedBar.setProgress(connector.getInitialSpeed());
+                    stepBar.setProgress(connector.getInitialStep());
                     enableUpdates();
                 });
             }
@@ -119,8 +122,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void enableUpdates() {
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, connector.getKnownStyles());
+        stylePicker.setAdapter(adapter);
         brightnessBar.setOnSeekBarChangeListener(brightnessListener);
-        stylePicker.setOnItemSelectedListener(dropdownListener);
+        stylePicker.setOnItemSelectedListener(stylePickListener);
+        speedBar.setOnSeekBarChangeListener(speedListener);
+        stepBar.setOnSeekBarChangeListener(stepListener);
     }
 
     private void showStatus(String status) {
@@ -143,10 +150,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private AdapterView.OnItemSelectedListener dropdownListener = new AdapterView.OnItemSelectedListener() {
+    private AdapterView.OnItemSelectedListener stylePickListener = new AdapterView.OnItemSelectedListener() {
         @Override
         public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-            String style = StyleEntries[i];
+            String style = connector.getKnownStyles()[i];
             showStatus("Selected item: " + style);
             connector.setStyle((byte)i);
         }
@@ -156,10 +163,39 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private SeekBar.OnSeekBarChangeListener speedListener = new SeekBar.OnSeekBarChangeListener() {
+        @Override
+        public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            connector.setSpeed((byte)i);
+        }
+
+        @Override
+        public void onStartTrackingTouch(SeekBar seekBar) {
+        }
+
+        @Override
+        public void onStopTrackingTouch(SeekBar seekBar) {
+        }
+    };
+
+    private SeekBar.OnSeekBarChangeListener stepListener = new SeekBar.OnSeekBarChangeListener() {
+        @Override
+        public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            connector.setStep((byte)i);
+        }
+
+        @Override
+        public void onStartTrackingTouch(SeekBar seekBar) {
+        }
+
+        @Override
+        public void onStopTrackingTouch(SeekBar seekBar) {
+        }
+    };
+
     private SeekBar.OnSeekBarChangeListener brightnessListener = new SeekBar.OnSeekBarChangeListener() {
         @Override
         public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-            //showStatus("Setting brightness to " + i);
             connector.setBrightness((byte)i);
         }
 
@@ -169,9 +205,6 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onStopTrackingTouch(SeekBar seekBar) {
-//            int value = seekBar.getProgress();
-//            showStatus("Setting brightness to " + value);
-//            connector.setBrightness((byte)value);
         }
     };
 }
