@@ -31,48 +31,9 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar stepBar = null;
     private boolean showDebug = false;
 
-    private boolean hasPermission(String permission) {
-        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private boolean hasRequiredRuntimePermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            return hasPermission(Manifest.permission.BLUETOOTH_SCAN) && hasPermission(Manifest.permission.BLUETOOTH_CONNECT);
-        } else {
-            return hasPermission(Manifest.permission.ACCESS_FINE_LOCATION);
-        }
-    }
-
-    private void requestRelevantRuntimePermissions() {
-        if (hasRequiredRuntimePermissions()) {
-            return;
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            requestLocationPermission();
-        } else {
-            requestBluetoothPermissions();
-        }
-    }
-
-    private void requestLocationPermission() {
-        ActivityCompat.requestPermissions(
-                this,
-                new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
-                RUNTIME_PERMISSION_REQUEST_CODE
-        );
-    }
-
-    private void requestBluetoothPermissions() {
-        ActivityCompat.requestPermissions(
-                this,
-                new String[] {
-                        Manifest.permission.BLUETOOTH_SCAN,
-                        Manifest.permission.BLUETOOTH_CONNECT
-                },
-                RUNTIME_PERMISSION_REQUEST_CODE
-        );
-    }
-
+    //
+    // Main entry point
+    //
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -112,7 +73,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateDebugStateInUI() {
-        // Update the UI to reflect the current status of the 'showDebug' flag
+        // Update the UI to reflect the current state of the 'showDebug' flag
         ScrollView scrollView = findViewById(R.id.scrollview);
         scrollView.setVisibility(showDebug ? View.VISIBLE : View.GONE);
         Button showDebugButton = findViewById(R.id.btnShowHideDebug);
@@ -165,6 +126,51 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    //
+    // Permission handling helpers
+    //
+    private boolean hasPermission(String permission) {
+        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasRequiredRuntimePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return hasPermission(Manifest.permission.BLUETOOTH_SCAN) && hasPermission(Manifest.permission.BLUETOOTH_CONNECT);
+        } else {
+            return hasPermission(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+    }
+
+    private void requestRelevantRuntimePermissions() {
+        if (hasRequiredRuntimePermissions()) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            requestLocationPermission();
+        } else {
+            requestBluetoothPermissions();
+        }
+    }
+
+    private void requestLocationPermission() {
+        ActivityCompat.requestPermissions(
+                this,
+                new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
+                RUNTIME_PERMISSION_REQUEST_CODE
+        );
+    }
+
+    private void requestBluetoothPermissions() {
+        ActivityCompat.requestPermissions(
+                this,
+                new String[] {
+                        Manifest.permission.BLUETOOTH_SCAN,
+                        Manifest.permission.BLUETOOTH_CONNECT
+                },
+                RUNTIME_PERMISSION_REQUEST_CODE
+        );
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -194,6 +200,9 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    // The many "seekbar" event handlers could be condensed into a single
+    // method that constructs a listener given a Consumer<Byte>, but that
+    // was introduced in an API version higher than the current minimum.
     private SeekBar.OnSeekBarChangeListener speedListener = new SeekBar.OnSeekBarChangeListener() {
         @Override
         public void onProgressChanged(SeekBar seekBar, int i, boolean b) {

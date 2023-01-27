@@ -50,6 +50,8 @@ public class NanoConnector {
     private BluetoothGattCharacteristic speedCharacteristic;
     private BluetoothGattCharacteristic stepCharacteristic;
 
+    // Could make this Optional<Integer> to avoid needing a "-1" sentinel value,
+    // but Optional was introduced in an API that's higher than the current minimum.
     private int initialBrightness = -1;
     private int initialStyle = -1;
     private String[] knownStyles;
@@ -204,11 +206,14 @@ public class NanoConnector {
             return gattChar;
         }
 
-       @Override
-       public void onCharacteristicRead(BluetoothGatt gatt,
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt,
                                         BluetoothGattCharacteristic characteristic,
                                         int status) {
 
+            // Process callbacks using an ugly state machine below.
+            // This should be eventually change to use a queue, where the next
+            // characteristic to read is pulled from the queue until the queue is empty.
             if (characteristic.getUuid().equals(BrightnessCharacteristicId)) {
                 byte b = characteristic.getValue()[0];
                 initialBrightness = Byte.toUnsignedInt(b);
@@ -250,6 +255,6 @@ public class NanoConnector {
                callback.acceptStatus("Connected and ready.");
                callback.connected();
             }
-       }
+        }
     };
 }
