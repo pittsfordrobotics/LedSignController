@@ -21,13 +21,14 @@
 
     <ScrollView
         android:id="@+id/scrollview"
-        android:layout_width="300dp"
-        android:layout_height="250dp"
-        android:layout_marginTop="32dp"
+        android:layout_width="fill_parent"
+        android:layout_height="200dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.495"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toBottomOf="@+id/btnShowHideDebug">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -38,7 +39,7 @@
                 android:id="@+id/txtStatus"
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
-                android:text="txtStatus" />
+                android:text="Initializing" />
 
         </LinearLayout>
     </ScrollView>
@@ -50,11 +51,9 @@
         android:layout_marginTop="16dp"
         android:minHeight="48dp"
         android:spinnerMode="dropdown"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/seekBarStep"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintTop_toBottomOf="@+id/seekBarStep" />
 
     <SeekBar
         android:id="@+id/seekBarBrightness"
@@ -85,7 +84,7 @@
         android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="32dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="16dp"
         android:text="Brightness:"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -105,10 +104,30 @@
         android:id="@+id/textView3"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="16dp"
         android:text="Step:"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/seekBarBrightness" />
+
+    <TextView
+        android:id="@+id/txtConnectStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Connecting..."
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/btnShowHideDebug"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Show/Hide"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/txtConnectStatus" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

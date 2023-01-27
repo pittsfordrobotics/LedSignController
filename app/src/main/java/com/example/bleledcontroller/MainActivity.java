@@ -11,6 +11,8 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -27,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar brightnessBar = null;
     private SeekBar speedBar = null;
     private SeekBar stepBar = null;
+    private boolean showDebug = false;
 
     private boolean hasPermission(String permission) {
         return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
@@ -76,25 +79,44 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         try {
+            // Bind the common UI elements
             txtStatus = findViewById(R.id.txtStatus);
-            txtStatus.setText("");
-            showStatus("Initializing");
             brightnessBar = findViewById(R.id.seekBarBrightness);
             speedBar = findViewById(R.id.seekBarSpeed);
             stepBar = findViewById(R.id.seekBarStep);
             stylePicker = findViewById(R.id.spStyle);
 
+            // Bind any initial event handlers
+            Button showDebugButton = findViewById(R.id.btnShowHideDebug);
+            showDebugButton.setOnClickListener(showHideDebugListener);
+
+            // Set the initial UI state
+            txtStatus.setText("");
+            showStatus("Initializing");
+            showDebug = false;
+            updateDebugStateInUI();
+
+            // Request permissions if needed
             if (!hasRequiredRuntimePermissions()) {
                 requestRelevantRuntimePermissions();
             } else {
                 Toast.makeText(this, "Permissions already granted.", Toast.LENGTH_SHORT).show();
             }
 
+            // Start the BLE connection
             connector = createConnector();
             connector.connect();
         } catch (Exception e) {
             txtStatus.setText(e.toString());
         }
+    }
+
+    private void updateDebugStateInUI() {
+        // Update the UI to reflect the current status of the 'showDebug' flag
+        ScrollView scrollView = findViewById(R.id.scrollview);
+        scrollView.setVisibility(showDebug ? View.VISIBLE : View.GONE);
+        Button showDebugButton = findViewById(R.id.btnShowHideDebug);
+        showDebugButton.setText(showDebug ? "Hide Debug Info" : "Show Debug Info");
     }
 
     private NanoConnector createConnector() {
@@ -108,7 +130,7 @@ public class MainActivity extends AppCompatActivity {
             public void connected() {
                 runOnUiThread(() ->
                 {
-                    enableUpdates();
+                    onConnected();
                 });
             }
         };
@@ -117,8 +139,11 @@ public class MainActivity extends AppCompatActivity {
         return new NanoConnector(this, callback);
     }
 
-    private void enableUpdates() {
-        // Populate with current values
+    private void onConnected() {
+        TextView txt = findViewById(R.id.txtConnectStatus);
+        txt.setText("Connected");
+
+        // Populate UI with current values
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, connector.getKnownStyles());
         stylePicker.setAdapter(adapter);
         brightnessBar.setProgress(connector.getInitialBrightness());
@@ -153,6 +178,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //
+    // Various event handlers
+    //
     private AdapterView.OnItemSelectedListener stylePickListener = new AdapterView.OnItemSelectedListener() {
         @Override
         public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
@@ -211,5 +239,10 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onStopTrackingTouch(SeekBar seekBar) {
         }
+    };
+
+    private View.OnClickListener showHideDebugListener = view -> {
+        showDebug = !showDebug;
+        updateDebugStateInUI();
     };
 }
