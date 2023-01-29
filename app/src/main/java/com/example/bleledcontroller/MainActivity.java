@@ -47,6 +47,9 @@ public class MainActivity extends AppCompatActivity {
             stepBar = findViewById(R.id.seekBarStep);
             stylePicker = findViewById(R.id.spStyle);
 
+            // Disable UI elements by default
+            setUIEnabledState(false);
+
             // Bind any initial event handlers
             Button showDebugButton = findViewById(R.id.btnShowHideDebug);
             showDebugButton.setOnClickListener(showHideDebugListener);
@@ -81,18 +84,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private NanoConnector createConnector() {
+        Runnable onConnected = this::onConnected;
+        Runnable onDisconnected = this::onDisconnected;
+
         NanoConnectorCallback callback = new NanoConnectorCallback() {
             @Override
             public void acceptStatus(String status) {
-                showStatus(status);
+                runOnUiThread(() -> {
+                    showStatus(status);
+                });
             }
 
             @Override
             public void connected() {
-                runOnUiThread(() ->
-                {
-                    onConnected();
-                });
+                runOnUiThread(onConnected);
+            }
+
+            @Override
+            public void disconnected() {
+                runOnUiThread(onDisconnected);
             }
         };
 
@@ -113,17 +123,31 @@ public class MainActivity extends AppCompatActivity {
         stepBar.setProgress(connector.getInitialStep());
 
         // Enable updates
+        setUIEnabledState(true);
         brightnessBar.setOnSeekBarChangeListener(brightnessListener);
         stylePicker.setOnItemSelectedListener(stylePickListener);
         speedBar.setOnSeekBarChangeListener(speedListener);
         stepBar.setOnSeekBarChangeListener(stepListener);
     }
 
+    private void onDisconnected() {
+        showStatus("Disconnected.");
+        TextView txt = findViewById(R.id.txtConnectStatus);
+        txt.setText("Disconnected");
+
+        setUIEnabledState(false);
+    }
+
     private void showStatus(String status) {
-        runOnUiThread(() -> {
-            String newText = txtStatus.getText().toString() + '\n' + status;
-            txtStatus.setText(newText);
-        });
+        String newText = txtStatus.getText().toString() + '\n' + status;
+        txtStatus.setText(newText);
+    }
+
+    private void setUIEnabledState(boolean enabled) {
+        brightnessBar.setEnabled(enabled);
+        stylePicker.setEnabled(enabled);
+        speedBar.setEnabled(enabled);
+        stepBar.setEnabled(enabled);
     }
 
     //

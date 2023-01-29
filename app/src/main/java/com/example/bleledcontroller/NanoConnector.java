@@ -21,8 +21,10 @@ import android.content.Context;
 import android.os.ParcelUuid;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.UUID;
 
 public class NanoConnector {
@@ -49,6 +51,7 @@ public class NanoConnector {
     private BluetoothGattCharacteristic namesCharacteristic;
     private BluetoothGattCharacteristic speedCharacteristic;
     private BluetoothGattCharacteristic stepCharacteristic;
+    private LinkedList<BluetoothGattCharacteristic> characteristicQueue = new LinkedList<>();
 
     // Could make this Optional<Integer> to avoid needing a "-1" sentinel value,
     // but Optional was introduced in an API that's higher than the current minimum.
@@ -72,8 +75,6 @@ public class NanoConnector {
             return;
         }
 
-        BluetoothLeScanner bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
-
         ScanFilter scanFilter = new ScanFilter.Builder()
                 .setServiceUuid(LedServiceParcelUuid)
                 .build();
@@ -87,7 +88,7 @@ public class NanoConnector {
                 .setCallbackType(CALLBACK_TYPE_FIRST_MATCH)
                 .build();
 
-        bluetoothLeScanner.startScan(filters, scanSettings, leScanCallback);
+        bluetoothAdapter.getBluetoothLeScanner().startScan(filters, scanSettings, leScanCallback);
     }
 
     public int getInitialBrightness() {
@@ -110,11 +111,6 @@ public class NanoConnector {
 
     public String[] getKnownStyles() { return knownStyles; }
 
-    private void connectToDevice(BluetoothDevice device) {
-        callback.acceptStatus("Attempting GATT connection.");
-        device.connectGatt(context, true, gattCallback);
-    }
-
     public int getInitialSpeed() { return initialSpeed; }
     public void setSpeed(int speed) {
         speedCharacteristic.setValue(speed, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
@@ -132,28 +128,37 @@ public class NanoConnector {
                 @Override
                 public void onScanResult(int callbackType, ScanResult result) {
                     bluetoothDevice = result.getDevice();
-                    String status = "Connected to device: " + bluetoothDevice.getName();
+                    String status = "Discovered device: " + bluetoothDevice.getName();
                     callback.acceptStatus(status);
-                    connectToDevice(bluetoothDevice);
+                    callback.acceptStatus("Stopping scan and attempting GATT connection.");
+                    bluetoothAdapter.getBluetoothLeScanner().stopScan(leScanCallback);
+                    bluetoothDevice.connectGatt(context, false, gattCallback);
                 }
             };
 
     private BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            callback.acceptStatus("BLE connect state changed. Status: " + status + ", state: " + newState);
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
                     callback.acceptStatus("Connected to device - discovering services");
                     bluetoothGatt = gatt;
                     bluetoothGatt.discoverServices();
-                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                    callback.acceptStatus("Disconnected.");
-                    gatt.close();
+                } else {
+                    processDisconnect(gatt, "Unexpected GATT state encountered: " + newState);
                 }
             } else {
-                callback.acceptStatus("Error encountered while connecting: " + status);
-                gatt.close();
+                String msg = "Unexpected GATT status encountered. Status: " + status + ", state: " + newState;
+                processDisconnect(gatt, msg);
             }
+        }
+
+        private void processDisconnect(BluetoothGatt gatt, String callbackMessage) {
+            callback.acceptStatus(callbackMessage);
+            gatt.disconnect();
+            gatt.close();
+            callback.disconnected();
         }
 
         @Override
@@ -188,13 +193,20 @@ public class NanoConnector {
                 || namesCharacteristic == null
                 || speedCharacteristic == null
                 || stepCharacteristic == null) {
+                callback.acceptStatus("At least one characteristic was not found in the service.");
                 return;
             }
 
             callback.acceptStatus("Services bound successfully.");
 
-            // Start reading initial values - do this one at a time to avoid parallelism issues.
-            // Should have some sort of queuing mechanism.
+            // We can only read one characteristic at a time, so we'll start by reading the
+            // brightness characteristic, and create a list of all the other characteristics
+            // to be read after that.
+            characteristicQueue.add(styleCharacteristic);
+            characteristicQueue.add(namesCharacteristic);
+            characteristicQueue.add(speedCharacteristic);
+            characteristicQueue.add(stepCharacteristic);
+
             gatt.readCharacteristic(brightnessCharacteristic);
         }
 
@@ -211,50 +223,44 @@ public class NanoConnector {
                                         BluetoothGattCharacteristic characteristic,
                                         int status) {
 
-            // Process callbacks using an ugly state machine below.
-            // This should be eventually change to use a queue, where the next
-            // characteristic to read is pulled from the queue until the queue is empty.
             if (characteristic.getUuid().equals(BrightnessCharacteristicId)) {
                 byte b = characteristic.getValue()[0];
                 initialBrightness = Byte.toUnsignedInt(b);
                 callback.acceptStatus("Initial brightness: " + initialBrightness);
-                gatt.readCharacteristic(styleCharacteristic);
-                return;
             }
 
             if (characteristic.getUuid().equals(StyleCharacteristicId)) {
                 byte b = characteristic.getValue()[0];
                 initialStyle = Byte.toUnsignedInt(b);
                 callback.acceptStatus("Initial style: " + initialStyle);
-                gatt.readCharacteristic(namesCharacteristic);
-                return;
             }
 
             if (characteristic.getUuid().equals(NamesCharacteristicId)) {
                 String s = new String(characteristic.getValue());
                 callback.acceptStatus("List of names: " + s);
                 knownStyles = s.split(";");
-                gatt.readCharacteristic(speedCharacteristic);
-                return;
             }
 
             if (characteristic.getUuid().equals(SpeedCharacteristicId)) {
                 byte b = characteristic.getValue()[0];
                 initialSpeed = Byte.toUnsignedInt(b);
                 callback.acceptStatus("Initial speed: " + b);
-                gatt.readCharacteristic(stepCharacteristic);
-                return;
             }
 
             if (characteristic.getUuid().equals(StepCharacteristicId)) {
                byte b = characteristic.getValue()[0];
                initialStep = Byte.toUnsignedInt(b);
                callback.acceptStatus("Initial step: " + b);
-
-               // Finally done!
-               callback.acceptStatus("Connected and ready.");
-               callback.connected();
             }
+
+            if (characteristicQueue.isEmpty()) {
+                callback.acceptStatus("Connected and ready.");
+                callback.connected();
+                return;
+            }
+
+            BluetoothGattCharacteristic nextCharacteristic = characteristicQueue.pop();
+            gatt.readCharacteristic(nextCharacteristic);
         }
     };
 }
