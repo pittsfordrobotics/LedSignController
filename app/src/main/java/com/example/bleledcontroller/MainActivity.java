@@ -26,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView txtStatus = null;
     private NanoConnector connector = null;
     private Spinner stylePicker = null;
+    private Spinner patternPicker = null;
     private SeekBar brightnessBar = null;
     private SeekBar speedBar = null;
     private SeekBar stepBar = null;
@@ -46,6 +47,7 @@ public class MainActivity extends AppCompatActivity {
             speedBar = findViewById(R.id.seekBarSpeed);
             stepBar = findViewById(R.id.seekBarStep);
             stylePicker = findViewById(R.id.spStyle);
+            patternPicker = findViewById(R.id.spPattern);
 
             // Disable UI elements by default
             setUIEnabledState(false);
@@ -115,12 +117,15 @@ public class MainActivity extends AppCompatActivity {
         txt.setText("Connected");
 
         // Populate UI with current values
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, connector.getKnownStyles());
-        stylePicker.setAdapter(adapter);
+        ArrayAdapter<String> styleAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, connector.getKnownStyles());
+        stylePicker.setAdapter(styleAdapter);
+        ArrayAdapter<String> patternAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, connector.getKnownPatterns());
+        patternPicker.setAdapter(patternAdapter);
         brightnessBar.setProgress(connector.getInitialBrightness());
         stylePicker.setSelection(connector.getInitialStyle());
         speedBar.setProgress(connector.getInitialSpeed());
         stepBar.setProgress(connector.getInitialStep());
+        patternPicker.setSelection(connector.getInitialPattern());
 
         // Enable updates
         setUIEnabledState(true);
@@ -128,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
         stylePicker.setOnItemSelectedListener(stylePickListener);
         speedBar.setOnSeekBarChangeListener(speedListener);
         stepBar.setOnSeekBarChangeListener(stepListener);
+        patternPicker.setOnItemSelectedListener(patternPickListener);
     }
 
     private void onDisconnected() {
@@ -148,6 +154,7 @@ public class MainActivity extends AppCompatActivity {
         stylePicker.setEnabled(enabled);
         speedBar.setEnabled(enabled);
         stepBar.setEnabled(enabled);
+        patternPicker.setEnabled(enabled);
     }
 
     //
@@ -215,8 +222,21 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
             String style = connector.getKnownStyles()[i];
-            showStatus("Selected item: " + style);
+            showStatus("Selected style: " + style);
             connector.setStyle((byte)i);
+        }
+
+        @Override
+        public void onNothingSelected(AdapterView<?> adapterView) {
+        }
+    };
+
+    private AdapterView.OnItemSelectedListener patternPickListener = new AdapterView.OnItemSelectedListener() {
+        @Override
+        public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+            String pattern = connector.getKnownPatterns()[i];
+            showStatus("Selected pattern: " + pattern);
+            connector.setPattern((byte)i);
         }
 
         @Override

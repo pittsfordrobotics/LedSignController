@@ -39,6 +39,8 @@ public class NanoConnector {
     private static final UUID NamesCharacteristicId = UUID.fromString("9022a1e0-3a1f-428a-bad6-3181a4d010a5");
     private static final UUID SpeedCharacteristicId = UUID.fromString("b975e425-62e4-4b08-a652-d64ad5097815");
     private static final UUID StepCharacteristicId = UUID.fromString("70e51723-0771-4946-a5b3-49693e9646b5");
+    private static final UUID PatternCharacteristicId = UUID.fromString("6b503d25-f643-4823-a8a6-da51109e713f");
+    private static final UUID PatternNamesCharacteristicId = UUID.fromString("348195d1-e237-4b0b-aea4-c818c3eb5e2a");
 
     private Context context;
     private NanoConnectorCallback callback;
@@ -51,6 +53,8 @@ public class NanoConnector {
     private BluetoothGattCharacteristic namesCharacteristic;
     private BluetoothGattCharacteristic speedCharacteristic;
     private BluetoothGattCharacteristic stepCharacteristic;
+    private BluetoothGattCharacteristic patternCharacteristic;
+    private BluetoothGattCharacteristic patternNamesCharacteristic;
     private LinkedList<BluetoothGattCharacteristic> characteristicQueue = new LinkedList<>();
 
     // Could make this Optional<Integer> to avoid needing a "-1" sentinel value,
@@ -58,8 +62,10 @@ public class NanoConnector {
     private int initialBrightness = -1;
     private int initialStyle = -1;
     private String[] knownStyles;
+    private String[] knownPatterns;
     private int initialSpeed = -1;
     private int initialStep = -1;
+    private int initialPattern = -1;
 
     public NanoConnector(Context context, NanoConnectorCallback callback) {
         this.context = context;
@@ -110,6 +116,7 @@ public class NanoConnector {
     }
 
     public String[] getKnownStyles() { return knownStyles; }
+    public String[] getKnownPatterns() { return knownPatterns; }
 
     public int getInitialSpeed() { return initialSpeed; }
     public void setSpeed(int speed) {
@@ -121,6 +128,12 @@ public class NanoConnector {
     public void setStep(int step) {
         stepCharacteristic.setValue(step, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
         bluetoothGatt.writeCharacteristic(stepCharacteristic);
+    }
+
+    public int getInitialPattern() { return initialPattern; }
+    public void setPattern(int pattern) {
+        patternCharacteristic.setValue(pattern, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        bluetoothGatt.writeCharacteristic(patternCharacteristic);
     }
 
     private ScanCallback leScanCallback =
@@ -187,12 +200,16 @@ public class NanoConnector {
             namesCharacteristic = findCharacteristic(ledService, NamesCharacteristicId, "Style Names");
             speedCharacteristic = findCharacteristic(ledService, SpeedCharacteristicId, "Speed");
             stepCharacteristic = findCharacteristic(ledService, StepCharacteristicId, "Step");
+            patternCharacteristic = findCharacteristic(ledService, PatternCharacteristicId, "Pattern");
+            patternNamesCharacteristic = findCharacteristic(ledService, PatternNamesCharacteristicId, "PatternNames");
 
             if (brightnessCharacteristic == null
                 || styleCharacteristic == null
                 || namesCharacteristic == null
                 || speedCharacteristic == null
-                || stepCharacteristic == null) {
+                || stepCharacteristic == null
+                || patternCharacteristic == null
+                || patternNamesCharacteristic == null) {
                 callback.acceptStatus("At least one characteristic was not found in the service.");
                 return;
             }
@@ -206,6 +223,8 @@ public class NanoConnector {
             characteristicQueue.add(namesCharacteristic);
             characteristicQueue.add(speedCharacteristic);
             characteristicQueue.add(stepCharacteristic);
+            characteristicQueue.add(patternCharacteristic);
+            characteristicQueue.add(patternNamesCharacteristic);
 
             gatt.readCharacteristic(brightnessCharacteristic);
         }
@@ -251,6 +270,18 @@ public class NanoConnector {
                byte b = characteristic.getValue()[0];
                initialStep = Byte.toUnsignedInt(b);
                callback.acceptStatus("Initial step: " + b);
+            }
+
+            if (characteristic.getUuid().equals(PatternCharacteristicId)) {
+                byte b = characteristic.getValue()[0];
+                initialPattern = Byte.toUnsignedInt(b);
+                callback.acceptStatus("Initial pattern: " + b);
+            }
+
+            if (characteristic.getUuid().equals(PatternNamesCharacteristicId)) {
+                String s = new String(characteristic.getValue());
+                callback.acceptStatus("List of patterns: " + s);
+                knownPatterns = s.split(";");
             }
 
             if (characteristicQueue.isEmpty()) {
