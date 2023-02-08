@@ -222,8 +222,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
             String style = connector.getKnownStyles()[i];
-            showStatus("Selected style: " + style);
-            connector.setStyle((byte)i);
+            showStatus("Selected style: " + i + "(" + style + ")");
+            connector.setStyle(i);
         }
 
         @Override
@@ -235,8 +235,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
             String pattern = connector.getKnownPatterns()[i];
-            showStatus("Selected pattern: " + pattern);
-            connector.setPattern((byte)i);
+            showStatus("Selected pattern: " + i + "(" + pattern + ")");
+            connector.setPattern(i);
         }
 
         @Override
@@ -251,7 +251,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
             showStatus("Setting sped to " + i);
-            connector.setSpeed((byte)i);
+            connector.setSpeed(i);
         }
 
         @Override
@@ -267,7 +267,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
             showStatus("Setting step to " + i);
-            connector.setStep((byte)i);
+            connector.setStep(i);
         }
 
         @Override
@@ -282,7 +282,7 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar.OnSeekBarChangeListener brightnessListener = new SeekBar.OnSeekBarChangeListener() {
         @Override
         public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-            connector.setBrightness((byte)i);
+            connector.setBrightness(i);
         }
 
         @Override

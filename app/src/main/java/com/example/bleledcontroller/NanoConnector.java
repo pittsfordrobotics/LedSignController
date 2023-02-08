@@ -102,7 +102,7 @@ public class NanoConnector {
     }
 
     public void setBrightness(int brightness) {
-        brightnessCharacteristic.setValue(brightness, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        brightnessCharacteristic.setValue(new byte[] {(byte)brightness});
         bluetoothGatt.writeCharacteristic(brightnessCharacteristic);
     }
 
@@ -111,7 +111,7 @@ public class NanoConnector {
     }
 
     public void setStyle(int style) {
-        styleCharacteristic.setValue(style, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        styleCharacteristic.setValue(new byte[] {(byte)style});
         bluetoothGatt.writeCharacteristic(styleCharacteristic);
     }
 
@@ -120,19 +120,19 @@ public class NanoConnector {
 
     public int getInitialSpeed() { return initialSpeed; }
     public void setSpeed(int speed) {
-        speedCharacteristic.setValue(speed, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        speedCharacteristic.setValue(new byte[] {(byte)speed});
         bluetoothGatt.writeCharacteristic(speedCharacteristic);
     }
 
     public int getInitialStep() { return initialStep; }
     public void setStep(int step) {
-        stepCharacteristic.setValue(step, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        stepCharacteristic.setValue(new byte[] {(byte)step});
         bluetoothGatt.writeCharacteristic(stepCharacteristic);
     }
 
     public int getInitialPattern() { return initialPattern; }
     public void setPattern(int pattern) {
-        patternCharacteristic.setValue(pattern, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        patternCharacteristic.setValue(new byte[] {(byte)pattern});
         bluetoothGatt.writeCharacteristic(patternCharacteristic);
     }
 
