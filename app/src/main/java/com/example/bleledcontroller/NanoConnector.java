@@ -138,6 +138,10 @@ public class NanoConnector {
         bluetoothGatt.writeCharacteristic(patternCharacteristic);
     }
 
+    public void refreshVoltage() {
+        bluetoothGatt.readCharacteristic(batteryVoltageCharacteristic);
+    }
+
     private ScanCallback leScanCallback =
             new ScanCallback() {
                 @Override
@@ -292,8 +296,8 @@ public class NanoConnector {
             if (characteristic.getUuid().equals(BatteryVoltageCharacteristicId)) {
                 byte[] b = characteristic.getValue();
                 float voltage = ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN).getFloat();
-                //float voltage = characteristic.getFloatValue(FORMAT_FLOAT, 0);
-                callback.acceptStatus("Battery voltage: " + voltage);
+                callback.acceptStatus("Read battery voltage: " + voltage);
+                callback.acceptBatteryVoltage(voltage);
             }
 
             if (characteristicQueue.isEmpty()) {

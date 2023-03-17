@@ -55,6 +55,8 @@ public class MainActivity extends AppCompatActivity {
             // Bind any initial event handlers
             Button showDebugButton = findViewById(R.id.btnShowHideDebug);
             showDebugButton.setOnClickListener(showHideDebugListener);
+            Button refreshVoltage = findViewById(R.id.btnRefreshVoltage);
+            refreshVoltage.setOnClickListener(beginReadVoltage);
 
             // Set the initial UI state
             txtStatus.setText("");
@@ -105,6 +107,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void disconnected() {
                 runOnUiThread(onDisconnected);
+            }
+
+            @Override
+            public void acceptBatteryVoltage(float voltage) {
+                runOnUiThread(() -> {
+                    String message = "Battery: " + String.format("%.2f", voltage) + "v";
+                    TextView txtVoltage = findViewById(R.id.txtBatteryVoltage);
+                    txtVoltage.setText(message);
+                });
             }
         };
 
@@ -297,5 +308,9 @@ public class MainActivity extends AppCompatActivity {
     private View.OnClickListener showHideDebugListener = view -> {
         showDebug = !showDebug;
         updateDebugStateInUI();
+    };
+
+    private View.OnClickListener beginReadVoltage = view -> {
+        connector.refreshVoltage();
     };
 }
