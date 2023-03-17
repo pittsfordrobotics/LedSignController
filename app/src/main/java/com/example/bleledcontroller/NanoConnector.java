@@ -1,5 +1,6 @@
 package com.example.bleledcontroller;
 
+import static android.bluetooth.BluetoothGattCharacteristic.FORMAT_FLOAT;
 import static android.bluetooth.le.ScanSettings.CALLBACK_TYPE_FIRST_MATCH;
 import static android.bluetooth.le.ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT;
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_BALANCED;
@@ -12,7 +13,6 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
-import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
@@ -20,11 +20,11 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.os.ParcelUuid;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
 import java.util.UUID;
 
 public class NanoConnector {
@@ -41,6 +41,7 @@ public class NanoConnector {
     private static final UUID StepCharacteristicId = UUID.fromString("70e51723-0771-4946-a5b3-49693e9646b5");
     private static final UUID PatternCharacteristicId = UUID.fromString("6b503d25-f643-4823-a8a6-da51109e713f");
     private static final UUID PatternNamesCharacteristicId = UUID.fromString("348195d1-e237-4b0b-aea4-c818c3eb5e2a");
+    private static final UUID BatteryVoltageCharacteristicId = UUID.fromString("ea0a95bc-7561-4b1e-8925-7973b3ad7b9a");
 
     private Context context;
     private NanoConnectorCallback callback;
@@ -55,6 +56,7 @@ public class NanoConnector {
     private BluetoothGattCharacteristic stepCharacteristic;
     private BluetoothGattCharacteristic patternCharacteristic;
     private BluetoothGattCharacteristic patternNamesCharacteristic;
+    private BluetoothGattCharacteristic batteryVoltageCharacteristic;
     private LinkedList<BluetoothGattCharacteristic> characteristicQueue = new LinkedList<>();
 
     // Could make this Optional<Integer> to avoid needing a "-1" sentinel value,
@@ -202,6 +204,7 @@ public class NanoConnector {
             stepCharacteristic = findCharacteristic(ledService, StepCharacteristicId, "Step");
             patternCharacteristic = findCharacteristic(ledService, PatternCharacteristicId, "Pattern");
             patternNamesCharacteristic = findCharacteristic(ledService, PatternNamesCharacteristicId, "PatternNames");
+            batteryVoltageCharacteristic = findCharacteristic(ledService, BatteryVoltageCharacteristicId, "BatterVoltage");
 
             if (brightnessCharacteristic == null
                 || styleCharacteristic == null
@@ -209,7 +212,8 @@ public class NanoConnector {
                 || speedCharacteristic == null
                 || stepCharacteristic == null
                 || patternCharacteristic == null
-                || patternNamesCharacteristic == null) {
+                || patternNamesCharacteristic == null
+                || batteryVoltageCharacteristic == null) {
                 callback.acceptStatus("At least one characteristic was not found in the service.");
                 return;
             }
@@ -225,6 +229,7 @@ public class NanoConnector {
             characteristicQueue.add(stepCharacteristic);
             characteristicQueue.add(patternCharacteristic);
             characteristicQueue.add(patternNamesCharacteristic);
+            characteristicQueue.add(batteryVoltageCharacteristic);
 
             gatt.readCharacteristic(brightnessCharacteristic);
         }
@@ -282,6 +287,13 @@ public class NanoConnector {
                 String s = new String(characteristic.getValue());
                 callback.acceptStatus("List of patterns: " + s);
                 knownPatterns = s.split(";");
+            }
+
+            if (characteristic.getUuid().equals(BatteryVoltageCharacteristicId)) {
+                byte[] b = characteristic.getValue();
+                float voltage = ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+                //float voltage = characteristic.getFloatValue(FORMAT_FLOAT, 0);
+                callback.acceptStatus("Battery voltage: " + voltage);
             }
 
             if (characteristicQueue.isEmpty()) {
