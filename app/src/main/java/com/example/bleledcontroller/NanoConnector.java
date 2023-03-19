@@ -1,6 +1,5 @@
 package com.example.bleledcontroller;
 
-import static android.bluetooth.BluetoothGattCharacteristic.FORMAT_FLOAT;
 import static android.bluetooth.le.ScanSettings.CALLBACK_TYPE_FIRST_MATCH;
 import static android.bluetooth.le.ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT;
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_BALANCED;
@@ -23,8 +22,10 @@ import android.os.ParcelUuid;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.UUID;
 
 public class NanoConnector {
@@ -58,6 +59,10 @@ public class NanoConnector {
     private BluetoothGattCharacteristic patternNamesCharacteristic;
     private BluetoothGattCharacteristic batteryVoltageCharacteristic;
     private LinkedList<BluetoothGattCharacteristic> characteristicQueue = new LinkedList<>();
+    private HashMap<UUID, BleReadCharacteristicOperation> readOperations;
+    private Queue<BleOperation> operationQueue = new LinkedList<>();
+    private BleOperation pendingOperation = null;
+    private boolean isInitialized = false;
 
     // Could make this Optional<Integer> to avoid needing a "-1" sentinel value,
     // but Optional was introduced in an API that's higher than the current minimum.
@@ -223,19 +228,18 @@ public class NanoConnector {
             }
 
             callback.acceptStatus("Services bound successfully.");
+            InitializeCharacteristicOperations();
 
-            // We can only read one characteristic at a time, so we'll start by reading the
-            // brightness characteristic, and create a list of all the other characteristics
-            // to be read after that.
-            characteristicQueue.add(styleCharacteristic);
-            characteristicQueue.add(namesCharacteristic);
-            characteristicQueue.add(speedCharacteristic);
-            characteristicQueue.add(stepCharacteristic);
-            characteristicQueue.add(patternCharacteristic);
-            characteristicQueue.add(patternNamesCharacteristic);
-            characteristicQueue.add(batteryVoltageCharacteristic);
-
-            gatt.readCharacteristic(brightnessCharacteristic);
+            // We can only read one characteristic at a time, so add all the initial
+            // characteristic read operations to the queue.
+            addOperation(readOperations.get(BrightnessCharacteristicId));
+            addOperation(readOperations.get(StyleCharacteristicId));
+            addOperation(readOperations.get(NamesCharacteristicId));
+            addOperation(readOperations.get(SpeedCharacteristicId));
+            addOperation(readOperations.get(StepCharacteristicId));
+            addOperation(readOperations.get(PatternCharacteristicId));
+            addOperation(readOperations.get(PatternNamesCharacteristicId));
+            addOperation(readOperations.get(BatteryVoltageCharacteristicId));
         }
 
         private BluetoothGattCharacteristic findCharacteristic(BluetoothGattService service, UUID id, String name) {
@@ -246,68 +250,227 @@ public class NanoConnector {
             return gattChar;
         }
 
+        private void addOperation(BleOperation operation) {
+            //callback.acceptStatus("Adding an operation to the queue.");
+            operationQueue.add(operation);
+            if (pendingOperation == null) {
+                // No operations are yet processing. Kick off the next one in the queue.
+                //callback.acceptStatus("No operations are in progress, starting one.");
+                doNextOperation();
+            } else {
+                //callback.acceptStatus("An operation is already in progress, no new one will be started.");
+            }
+        }
+
+        // Complete the pending operation and start the next one.
+        private void completeOperation() {
+            pendingOperation = null;
+            doNextOperation();
+        }
+
+        private void doNextOperation() {
+            if (pendingOperation != null) {
+                // Already working on an operation.
+                return;
+            }
+
+            if (operationQueue.isEmpty()) {
+                //callback.acceptStatus("Operation queue is empty.");
+                // No more operations to run.
+                // If we haven't yet let our client know that we've been fully initialized,
+                // (that is, if all of the initial values have been now been read), let the client know.
+                if (!isInitialized) {
+                    isInitialized = true;
+                    callback.acceptStatus("Connected and ready.");
+                    callback.connected();
+                }
+                return;
+            }
+
+            //callback.acceptStatus("Pulling an operation from the queue.");
+            pendingOperation = operationQueue.remove();
+            if (pendingOperation instanceof BleReadCharacteristicOperation) {
+                callback.acceptStatus("Starting the read of a characteristic.");
+                BleReadCharacteristicOperation op = (BleReadCharacteristicOperation) pendingOperation;
+                op.getBluetoothGatt().readCharacteristic(op.getCharacteristic());
+                return;
+            }
+
+            callback.acceptStatus("Unknown operation encountered.");
+            return;
+        }
+
+        // Setup the set of known operations for reading/writing the BLE characteristics.
+        // The hashmap is keyed by the characteristic UUID.
+        private void InitializeCharacteristicOperations()
+        {
+            // Keyed by characteristic UUID
+            readOperations = new HashMap<>();
+            readOperations.put(BrightnessCharacteristicId, new BleReadCharacteristicOperation(
+                    bluetoothGatt,
+                    brightnessCharacteristic,
+                    this::setBrightnessFromCharacteristic));
+            readOperations.put(StyleCharacteristicId, new BleReadCharacteristicOperation(
+                    bluetoothGatt,
+                    styleCharacteristic,
+                    this::setStyleFromCharacteristic));
+            readOperations.put(NamesCharacteristicId, new BleReadCharacteristicOperation(
+                    bluetoothGatt,
+                    namesCharacteristic,
+                    this::setNamesFromCharacteristic));
+            readOperations.put(SpeedCharacteristicId, new BleReadCharacteristicOperation(
+                    bluetoothGatt,
+                    speedCharacteristic,
+                    this::setSpeedFromCharacteristic));
+            readOperations.put(StepCharacteristicId, new BleReadCharacteristicOperation(
+                    bluetoothGatt,
+                    stepCharacteristic,
+                    this::setStepFromCharacteristic));
+            readOperations.put(PatternCharacteristicId, new BleReadCharacteristicOperation(
+                    bluetoothGatt,
+                    patternCharacteristic,
+                    this::setPatternFromCharacteristic));
+            readOperations.put(PatternNamesCharacteristicId, new BleReadCharacteristicOperation(
+                    bluetoothGatt,
+                    patternCharacteristic,
+                    this::setPatternNamesFromCharacteristic));
+            readOperations.put(BatteryVoltageCharacteristicId, new BleReadCharacteristicOperation(
+                    bluetoothGatt,
+                    batteryVoltageCharacteristic,
+                    this::setBatteryVoltageFromCharacteristic));
+        }
+
+        //
+        // Define the callbacks for processing the results of a characteristic read
+        //
+        private void setBrightnessFromCharacteristic(BluetoothGattCharacteristic characteristic) {
+            byte b = characteristic.getValue()[0];
+            initialBrightness = Byte.toUnsignedInt(b);
+            callback.acceptStatus("Retrieved brightness: " + initialBrightness);
+        }
+
+        private void setStyleFromCharacteristic(BluetoothGattCharacteristic characteristic) {
+            byte b = characteristic.getValue()[0];
+            initialStyle = Byte.toUnsignedInt(b);
+            callback.acceptStatus("Retrieved style: " + initialStyle);
+        }
+
+        private void setNamesFromCharacteristic(BluetoothGattCharacteristic characteristic) {
+            String s = new String(characteristic.getValue());
+            callback.acceptStatus("Retrieved list of names: " + s);
+            knownStyles = s.split(";");
+        }
+
+        private void setSpeedFromCharacteristic(BluetoothGattCharacteristic characteristic) {
+            byte b = characteristic.getValue()[0];
+            initialSpeed = Byte.toUnsignedInt(b);
+            callback.acceptStatus("Retrieved speed: " + b);
+        }
+
+        private void setStepFromCharacteristic(BluetoothGattCharacteristic characteristic) {
+            byte b = characteristic.getValue()[0];
+            initialStep = Byte.toUnsignedInt(b);
+            callback.acceptStatus("Retrieved step: " + b);
+        }
+
+        private void setPatternFromCharacteristic(BluetoothGattCharacteristic characteristic) {
+            byte b = characteristic.getValue()[0];
+            initialPattern = Byte.toUnsignedInt(b);
+            callback.acceptStatus("Retrieved pattern: " + b);
+        }
+
+        private void setPatternNamesFromCharacteristic(BluetoothGattCharacteristic characteristic) {
+            String s = new String(characteristic.getValue());
+            callback.acceptStatus("Retrieved list of patterns: " + s);
+            knownPatterns = s.split(";");
+        }
+
+        private void setBatteryVoltageFromCharacteristic(BluetoothGattCharacteristic characteristic) {
+            byte[] b = characteristic.getValue();
+            float voltage = ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+            callback.acceptStatus("Retrieved battery voltage: " + voltage);
+            callback.acceptBatteryVoltage(voltage);
+        }
+
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt,
                                         BluetoothGattCharacteristic characteristic,
                                         int status) {
 
-            if (characteristic.getUuid().equals(BrightnessCharacteristicId)) {
-                byte b = characteristic.getValue()[0];
-                initialBrightness = Byte.toUnsignedInt(b);
-                callback.acceptStatus("Initial brightness: " + initialBrightness);
+            callback.acceptStatus("Read operation completed.");
+            if (!(pendingOperation instanceof BleReadCharacteristicOperation)) {
+                // Something unexpected happened!
+                callback.acceptStatus("ERROR: In the 'read' callback, but the pending operation is not a read operation.");
+                completeOperation();
             }
 
-            if (characteristic.getUuid().equals(StyleCharacteristicId)) {
-                byte b = characteristic.getValue()[0];
-                initialStyle = Byte.toUnsignedInt(b);
-                callback.acceptStatus("Initial style: " + initialStyle);
-            }
+            BleReadCharacteristicOperation op = (BleReadCharacteristicOperation)pendingOperation;
+            op.getCallback().ProcessCharacteristic(characteristic);
+            completeOperation();
 
-            if (characteristic.getUuid().equals(NamesCharacteristicId)) {
-                String s = new String(characteristic.getValue());
-                callback.acceptStatus("List of names: " + s);
-                knownStyles = s.split(";");
-            }
+//            if (characteristic.getUuid().equals(BrightnessCharacteristicId)) {
+//                byte b = characteristic.getValue()[0];
+//                initialBrightness = Byte.toUnsignedInt(b);
+//                callback.acceptStatus("Initial brightness: " + initialBrightness);
+//            }
+//
+//            if (characteristic.getUuid().equals(StyleCharacteristicId)) {
+//                byte b = characteristic.getValue()[0];
+//                initialStyle = Byte.toUnsignedInt(b);
+//                callback.acceptStatus("Initial style: " + initialStyle);
+//            }
+//
+//            if (characteristic.getUuid().equals(NamesCharacteristicId)) {
+//                String s = new String(characteristic.getValue());
+//                callback.acceptStatus("List of names: " + s);
+//                knownStyles = s.split(";");
+//            }
+//
+//            if (characteristic.getUuid().equals(SpeedCharacteristicId)) {
+//                byte b = characteristic.getValue()[0];
+//                initialSpeed = Byte.toUnsignedInt(b);
+//                callback.acceptStatus("Initial speed: " + b);
+//            }
+//
+//            if (characteristic.getUuid().equals(StepCharacteristicId)) {
+//               byte b = characteristic.getValue()[0];
+//               initialStep = Byte.toUnsignedInt(b);
+//               callback.acceptStatus("Initial step: " + b);
+//            }
+//
+//            if (characteristic.getUuid().equals(PatternCharacteristicId)) {
+//                byte b = characteristic.getValue()[0];
+//                initialPattern = Byte.toUnsignedInt(b);
+//                callback.acceptStatus("Initial pattern: " + b);
+//            }
+//
+//            if (characteristic.getUuid().equals(PatternNamesCharacteristicId)) {
+//                String s = new String(characteristic.getValue());
+//                callback.acceptStatus("List of patterns: " + s);
+//                knownPatterns = s.split(";");
+//            }
+//
+//            if (characteristic.getUuid().equals(BatteryVoltageCharacteristicId)) {
+//                byte[] b = characteristic.getValue();
+//                float voltage = ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+//                callback.acceptStatus("Read battery voltage: " + voltage);
+//                callback.acceptBatteryVoltage(voltage);
+//            }
+//
+//            if (characteristicQueue.isEmpty()) {
+//                callback.acceptStatus("Connected and ready.");
+//                callback.connected();
+//                return;
+//            }
+//
+//            BluetoothGattCharacteristic nextCharacteristic = characteristicQueue.pop();
+//            gatt.readCharacteristic(nextCharacteristic);
+        }
 
-            if (characteristic.getUuid().equals(SpeedCharacteristicId)) {
-                byte b = characteristic.getValue()[0];
-                initialSpeed = Byte.toUnsignedInt(b);
-                callback.acceptStatus("Initial speed: " + b);
-            }
-
-            if (characteristic.getUuid().equals(StepCharacteristicId)) {
-               byte b = characteristic.getValue()[0];
-               initialStep = Byte.toUnsignedInt(b);
-               callback.acceptStatus("Initial step: " + b);
-            }
-
-            if (characteristic.getUuid().equals(PatternCharacteristicId)) {
-                byte b = characteristic.getValue()[0];
-                initialPattern = Byte.toUnsignedInt(b);
-                callback.acceptStatus("Initial pattern: " + b);
-            }
-
-            if (characteristic.getUuid().equals(PatternNamesCharacteristicId)) {
-                String s = new String(characteristic.getValue());
-                callback.acceptStatus("List of patterns: " + s);
-                knownPatterns = s.split(";");
-            }
-
-            if (characteristic.getUuid().equals(BatteryVoltageCharacteristicId)) {
-                byte[] b = characteristic.getValue();
-                float voltage = ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN).getFloat();
-                callback.acceptStatus("Read battery voltage: " + voltage);
-                callback.acceptBatteryVoltage(voltage);
-            }
-
-            if (characteristicQueue.isEmpty()) {
-                callback.acceptStatus("Connected and ready.");
-                callback.connected();
-                return;
-            }
-
-            BluetoothGattCharacteristic nextCharacteristic = characteristicQueue.pop();
-            gatt.readCharacteristic(nextCharacteristic);
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            callback.acceptStatus("Write operation completed.");
+            completeOperation();
         }
     };
 }
