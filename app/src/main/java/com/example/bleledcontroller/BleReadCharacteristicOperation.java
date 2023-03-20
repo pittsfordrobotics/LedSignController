@@ -4,20 +4,14 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 
 public class BleReadCharacteristicOperation extends BleOperation {
-    private BluetoothGattCharacteristic characteristic;
     private BleReadOperationCallback callback;
 
     public BleReadCharacteristicOperation(
             BluetoothGatt bluetoothGatt,
             BluetoothGattCharacteristic characteristic,
             BleReadOperationCallback callback) {
-        super(bluetoothGatt);
-        this.characteristic = characteristic;
+        super(bluetoothGatt, characteristic);
         this.callback = callback;
-    }
-
-    public BluetoothGattCharacteristic getCharacteristic() {
-        return characteristic;
     }
 
     public BleReadOperationCallback getCallback() {
