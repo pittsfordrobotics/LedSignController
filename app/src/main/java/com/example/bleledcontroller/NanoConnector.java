@@ -242,7 +242,7 @@ public class NanoConnector {
                 this::setPatternFromCharacteristic));
         readOperations.put(PatternNamesCharacteristicId, new BleReadCharacteristicOperation(
                 bluetoothGatt,
-                patternCharacteristic,
+                patternNamesCharacteristic,
                 this::setPatternNamesFromCharacteristic));
         readOperations.put(BatteryVoltageCharacteristicId, new BleReadCharacteristicOperation(
                 bluetoothGatt,
