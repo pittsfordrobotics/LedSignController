@@ -233,9 +233,14 @@ public class MainActivity extends AppCompatActivity {
         return new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-                String item = (String)adapterView.getItemAtPosition(i);
-                showStatus("Selected " + pickerName + ": " + i + "(" + item + ")");
-                methodToInvoke.accept(i);
+                try {
+                    String item = (String) adapterView.getItemAtPosition(i);
+                    showStatus("Selected " + pickerName + ": " + i + "(" + item + ")");
+                    methodToInvoke.accept(i);
+                }
+                catch (Exception e) {
+                    showStatus("Error: " + e);
+                }
             }
 
             @Override
@@ -256,9 +261,14 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                int value = seekBar.getProgress();
-                showStatus("Setting " + seekbarName + " to " + value);
-                methodToInvoke.accept(value);
+                try {
+                    int value = seekBar.getProgress();
+                    showStatus("Setting " + seekbarName + " to " + value);
+                    methodToInvoke.accept(value);
+                }
+                catch (Exception e) {
+                    showStatus("Error: " + e);
+                }
             }
         };
     }
