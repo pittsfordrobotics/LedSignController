@@ -139,12 +139,12 @@ public class MainActivity extends AppCompatActivity {
         patternPicker.setSelection(connector.getInitialPattern());
 
         // Enable updates
+        brightnessBar.setOnSeekBarChangeListener(createGenericSeekBarListener("brightness", connector::setBrightness));
+        stylePicker.setOnItemSelectedListener(createGenericPickListener("style", connector::setStyle));
+        speedBar.setOnSeekBarChangeListener(createGenericSeekBarListener("speed", connector::setSpeed));
+        stepBar.setOnSeekBarChangeListener(createGenericSeekBarListener("step", connector::setStep));
+        patternPicker.setOnItemSelectedListener(createGenericPickListener("pattern", connector::setPattern));
         setUIEnabledState(true);
-        brightnessBar.setOnSeekBarChangeListener(brightnessListener);
-        stylePicker.setOnItemSelectedListener(stylePickListener);
-        speedBar.setOnSeekBarChangeListener(speedListener);
-        stepBar.setOnSeekBarChangeListener(stepListener);
-        patternPicker.setOnItemSelectedListener(patternPickListener);
     }
 
     private void onDisconnected() {
@@ -229,81 +229,39 @@ public class MainActivity extends AppCompatActivity {
     //
     // Various event handlers
     //
-    private AdapterView.OnItemSelectedListener stylePickListener = new AdapterView.OnItemSelectedListener() {
-        @Override
-        public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-            String style = connector.getKnownStyles()[i];
-            showStatus("Selected style: " + i + "(" + style + ")");
-            connector.setStyle(i);
-        }
+    private AdapterView.OnItemSelectedListener createGenericPickListener(String pickerName, Consumer<Integer> methodToInvoke) {
+        return new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                String item = (String)adapterView.getItemAtPosition(i);
+                showStatus("Selected " + pickerName + ": " + i + "(" + item + ")");
+                methodToInvoke.accept(i);
+            }
 
-        @Override
-        public void onNothingSelected(AdapterView<?> adapterView) {
-        }
-    };
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+            }
+        };
+    }
 
-    private AdapterView.OnItemSelectedListener patternPickListener = new AdapterView.OnItemSelectedListener() {
-        @Override
-        public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-            String pattern = connector.getKnownPatterns()[i];
-            showStatus("Selected pattern: " + i + "(" + pattern + ")");
-            connector.setPattern(i);
-        }
+    private SeekBar.OnSeekBarChangeListener createGenericSeekBarListener(String seekbarName, Consumer<Integer> methodToInvoke) {
+        return new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            }
 
-        @Override
-        public void onNothingSelected(AdapterView<?> adapterView) {
-        }
-    };
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
 
-    // The many "seekbar" event handlers could be condensed into a single
-    // method that constructs a listener given a Consumer<Byte>, but that
-    // was introduced in an API version higher than the current minimum.
-    private SeekBar.OnSeekBarChangeListener speedListener = new SeekBar.OnSeekBarChangeListener() {
-        @Override
-        public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-            showStatus("Setting sped to " + i);
-            connector.setSpeed(i);
-        }
-
-        @Override
-        public void onStartTrackingTouch(SeekBar seekBar) {
-        }
-
-        @Override
-        public void onStopTrackingTouch(SeekBar seekBar) {
-        }
-    };
-
-    private SeekBar.OnSeekBarChangeListener stepListener = new SeekBar.OnSeekBarChangeListener() {
-        @Override
-        public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-            showStatus("Setting step to " + i);
-            connector.setStep(i);
-        }
-
-        @Override
-        public void onStartTrackingTouch(SeekBar seekBar) {
-        }
-
-        @Override
-        public void onStopTrackingTouch(SeekBar seekBar) {
-        }
-    };
-
-    private SeekBar.OnSeekBarChangeListener brightnessListener = new SeekBar.OnSeekBarChangeListener() {
-        @Override
-        public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-            connector.setBrightness(i);
-        }
-
-        @Override
-        public void onStartTrackingTouch(SeekBar seekBar) {
-        }
-
-        @Override
-        public void onStopTrackingTouch(SeekBar seekBar) {
-        }
-    };
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int value = seekBar.getProgress();
+                showStatus("Setting " + seekbarName + " to " + value);
+                methodToInvoke.accept(value);
+            }
+        };
+    }
 
     private View.OnClickListener showHideDebugListener = view -> {
         showDebug = !showDebug;
