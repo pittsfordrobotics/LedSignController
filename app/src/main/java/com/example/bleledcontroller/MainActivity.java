@@ -5,6 +5,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -30,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar brightnessBar = null;
     private SeekBar speedBar = null;
     private SeekBar stepBar = null;
+    private Button[] preferenceButtons = null;
     private boolean showDebug = false;
 
     //
@@ -48,6 +50,12 @@ public class MainActivity extends AppCompatActivity {
             stepBar = findViewById(R.id.seekBarStep);
             stylePicker = findViewById(R.id.spStyle);
             patternPicker = findViewById(R.id.spPattern);
+            preferenceButtons = new Button[] {
+                    findViewById(R.id.btnPreset1),
+                    findViewById(R.id.btnPreset2),
+                    findViewById(R.id.btnPreset3),
+                    findViewById(R.id.btnPreset4)
+            };
 
             // Disable UI elements by default
             setUIEnabledState(false);
@@ -57,6 +65,11 @@ public class MainActivity extends AppCompatActivity {
             showDebugButton.setOnClickListener(showHideDebugListener);
             Button refreshVoltage = findViewById(R.id.btnRefreshVoltage);
             refreshVoltage.setOnClickListener(beginReadVoltage);
+
+            for (int i = 0; i < preferenceButtons.length; i++) {
+                preferenceButtons[i].setOnClickListener(readPreference(i));
+                preferenceButtons[i].setOnLongClickListener(writePreference(i));
+            }
 
             // Set the initial UI state
             txtStatus.setText("");
@@ -166,6 +179,10 @@ public class MainActivity extends AppCompatActivity {
         speedBar.setEnabled(enabled);
         stepBar.setEnabled(enabled);
         patternPicker.setEnabled(enabled);
+
+        for (Button b : preferenceButtons) {
+            b.setEnabled(enabled);
+        }
     }
 
     //
@@ -252,7 +269,12 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar.OnSeekBarChangeListener createGenericSeekBarListener(String seekbarName, Consumer<Integer> methodToInvoke) {
         return new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+            public void onProgressChanged(SeekBar seekBar, int i, boolean fromUser) {
+                if (!fromUser) {
+                    // Only emit the value if it was set programmatically.
+                    // If the user was changing the value, it will be handled by 'onStopTrackingTouch'.
+                    emitValue(seekBar);
+                }
             }
 
             @Override
@@ -261,6 +283,10 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
+                emitValue(seekBar);
+            }
+
+            private void emitValue(SeekBar seekBar) {
                 try {
                     int value = seekBar.getProgress();
                     showStatus("Setting " + seekbarName + " to " + value);
@@ -281,4 +307,49 @@ public class MainActivity extends AppCompatActivity {
     private View.OnClickListener beginReadVoltage = view -> {
         connector.refreshVoltage();
     };
+
+    private View.OnClickListener readPreference(int buttonNumber) {
+        return view -> {
+            int style = getPreferenceIntValue("Pref_Style" + buttonNumber);
+            int pattern = getPreferenceIntValue("Pref_Pattern" + buttonNumber);
+            int speed = getPreferenceIntValue("Pref_Speed" + buttonNumber);
+            int brightness = getPreferenceIntValue("Pref_Brightness" + buttonNumber);
+            int step = getPreferenceIntValue("Pref_Step" + buttonNumber);
+
+            if (style < 0 || pattern < 0 || speed < 0 || brightness < 0 || step < 0) {
+                showStatus("At least one preference value could not be read for button " + (buttonNumber + 1));
+                return;
+            }
+
+            stylePicker.setSelection(style);
+            patternPicker.setSelection(pattern);
+            brightnessBar.setProgress(brightness);
+            speedBar.setProgress(speed);
+            stepBar.setProgress(step);
+        };
+    }
+
+    private int getPreferenceIntValue(String prefName) {
+        SharedPreferences pref = getPreferences(MODE_PRIVATE);
+        if (!pref.contains(prefName)) {
+            return -1;
+        }
+
+        return pref.getInt(prefName, -1);
+    }
+
+    private View.OnLongClickListener writePreference(int buttonNumber) {
+        return view -> {
+            SharedPreferences pref = getPreferences(MODE_PRIVATE);
+            SharedPreferences.Editor editor = pref.edit();
+            editor.putInt("Pref_Style" + buttonNumber, stylePicker.getSelectedItemPosition());
+            editor.putInt("Pref_Pattern" + buttonNumber, patternPicker.getSelectedItemPosition());
+            editor.putInt("Pref_Speed" + buttonNumber, speedBar.getProgress());
+            editor.putInt("Pref_Brightness" + buttonNumber, brightnessBar.getProgress());
+            editor.putInt("Pref_Step" + buttonNumber, stepBar.getProgress());
+            editor.apply();
+            Toast.makeText(this, "Values set for preset number " + (buttonNumber + 1) + ".", Toast.LENGTH_SHORT).show();
+            return true;
+        };
+    }
 }
