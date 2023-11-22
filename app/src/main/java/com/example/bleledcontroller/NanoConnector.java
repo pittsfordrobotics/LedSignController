@@ -152,7 +152,13 @@ public class NanoConnector {
                     callback.acceptStatus(status);
                     callback.acceptStatus("Stopping scan and attempting GATT connection.");
                     bluetoothAdapter.getBluetoothLeScanner().stopScan(leScanCallback);
-                    bluetoothDevice.connectGatt(context, false, gattCallback);
+                    // Adding a small sleep.
+                    // https://medium.com/android-news/lessons-for-first-time-android-bluetooth-le-developers-i-learned-the-hard-way-fee07646624
+                    try {
+                        Thread.sleep(200);
+                    }
+                    catch (Exception e) {}
+                    bluetoothDevice.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
                 }
             };
 
